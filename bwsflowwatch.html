@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Flow Watch | Block Wall Street</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600&family=DM+Mono&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0a1628;--panel:#0f2038;--line:#1f3a62;--ink:#e8edf5;--gold:#d4a937;--dim:#8da0bd;--up:#2fd18b;--down:#ff5a68}
+[data-theme=cyan]{--gold:#35c6e8}
+[data-theme=white]{--gold:#ffffff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 "Barlow",system-ui,sans-serif}
+table,.card .v,input,textarea,select,button,.note{font-family:"DM Mono",ui-monospace,Menlo,Consolas,monospace}
+.note{font-size:12px}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--line)}
+h1,.box h3{color:var(--gold)}
+h1{margin:0;font:400 28px "Bebas Neue",Impact,sans-serif;letter-spacing:3px}
+h1 small{font:12px monospace;color:var(--dim);letter-spacing:1px;margin-left:10px}
+.tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+button,select,input,textarea{background:var(--bg);color:var(--ink);border:1px solid var(--dim);padding:7px 10px;font:inherit;border-radius:2px}
+button{cursor:pointer}button:hover,button.on{background:var(--gold);color:var(--bg);border-color:var(--gold)}
+.dot{width:16px;height:16px;border-radius:50%;border:1px solid #555;padding:0}
+nav{display:flex;gap:2px;padding:10px 18px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
+nav button{border-bottom:none;font-family:"Bebas Neue",Impact,sans-serif;font-size:17px;text-transform:uppercase;letter-spacing:1px}
+main{padding:18px;max-width:1200px;margin:auto}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin:12px 0}
+.card{background:var(--panel);border:1px solid var(--line);padding:12px}
+.card .k{color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:1px}
+.card .v{font-size:22px;margin-top:4px}
+.up{color:var(--up)}.down{color:var(--down)}
+.box{background:var(--panel);border:1px solid var(--line);padding:14px;margin:12px 0;overflow-x:auto}
+.box h3{margin:0 0 8px;font:400 20px "Bebas Neue",Impact,sans-serif;letter-spacing:2px}
+table{width:100%;border-collapse:collapse}
+th,td{text-align:right;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{color:var(--dim);font-weight:400;font-size:11px;text-transform:uppercase}
+th:first-child,td:first-child{text-align:left}
+.note{color:var(--dim);font-size:12px}
+.bar{display:flex;height:10px;min-width:120px;background:#0a1628}.bar i{display:block}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.chips button.on{background:var(--gold);color:var(--bg)}
+.err{color:var(--down)}
+svg text{fill:var(--dim);font:10px monospace}
+.hide{display:none}
+tr.sel td{background:#16294a}
+a{color:var(--gold)}
+</style>
+</head>
+<body>
+<header>
+  <h1>FLOW WATCH<small>BLOCK WALL STREET &middot; ETF / TREASURY / OPTIONS / FUTURES</small></h1>
+  <div class="tools">
+    <span class="note">View:</span><button class="tfb" data-tf="D">Daily</button><button class="tfb" data-tf="W">Weekly</button><button class="tfb" data-tf="M">Monthly</button>
+    <span class="note" id="stamp">not loaded</span>
+    <button id="refresh">Refresh</button>
+    <label class="note"><input type="checkbox" id="auto"> auto 5m</label>
+    <button class="dot" data-t="gold" style="background:#d4a937" title="Gold"></button>
+    <button class="dot" data-t="cyan" style="background:#35c6e8" title="Cyan"></button>
+    <button class="dot" data-t="white" style="background:#f2f2f2" title="White"></button>
+  </div>
+</header>
+<nav id="tabs">
+  <button data-tab="etf" class="on">ETF Flows</button>
+  <button data-tab="tre">Treasuries</button>
+  <button data-tab="opt">Options OI</button>
+  <button data-tab="fut">Futures Long/Short</button>
+</nav>
+<main>
+
+<!-- ETF -->
+<section id="etf">
+  <div class="note">No free public API exists for daily ETF flows, so this tab is a tracker you feed in 30 seconds a day. Copy the daily totals from
+    <a href="https://farside.co.uk/btc/" target="_blank" rel="noopener">Farside</a> or
+    <a href="https://sosovalue.com/assets/etf/us-btc-spot" target="_blank" rel="noopener">SoSoValue</a> and paste below. Data is saved in this browser only.</div>
+  <div class="chips" id="etfAssets"></div>
+  <div class="cards" id="etfCards"></div>
+  <div class="box"><h3 id="etfTitle">Net flow ($M)</h3><div id="etfChart"></div><div class="note">Green = net inflow, red = net outflow.</div></div>
+  <div class="box">
+    <h3>Add data</h3>
+    <div class="tools">
+      <input type="date" id="qDate"><select id="qAsset"></select><input id="qFlow" placeholder="net flow $M (negative = out)" size="26"><button id="qAdd">Add / overwrite day</button>
+    </div>
+    <p class="note">Or paste many rows. Either <b>date,flow</b> for the selected asset, or a header row like <b>date,BTC,ETH,SOL,XRP</b> with a row per day. Flows in $ millions.</p>
+    <textarea id="paste" rows="5" style="width:100%" placeholder="date,BTC,ETH&#10;2026-10-28,-120.5,34.2&#10;2026-10-29,310.0,-12.8"></textarea>
+    <div class="tools" style="margin-top:6px"><button id="pasteGo">Import</button><button id="exp">Export CSV</button><button id="clr">Clear selected asset</button><span id="etfMsg" class="note"></span></div>
+  </div>
+  <div class="box"><h3>Recent entries</h3><div id="etfTable"></div></div>
+</section>
+
+<!-- TREASURIES -->
+<section id="tre" class="hide">
+  <div class="chips" id="treAssets"></div>
+  <div class="cards" id="treCards"></div>
+  <div class="box"><h3>Top 10 public company treasuries</h3><div id="treTable"></div>
+    <p class="note">Holdings from CoinGecko's public-company treasury dataset (filings-based, so it lags real purchases). "Change" compares each company to a snapshot saved in your browser from about a day, week or month ago (matching the view you pick): positive = they bought, negative = they sold. History builds each time you open the tool. <button id="rebase">Clear saved history</button> <span id="baseNote"></span></p>
+  </div>
+</section>
+
+<!-- OPTIONS -->
+<section id="opt" class="hide">
+  <div class="tools"><label class="note">Asset</label><select id="optCoin"><option>BTC</option><option>ETH</option><option>SOL</option></select>
+  <span class="note">Source: Deribit public data (largest crypto options venue). Open interest in contracts, 1 contract = 1 coin.</span></div>
+  <div class="cards" id="optCards"></div>
+  <div class="box"><h3>Open interest by expiry</h3><div id="optExp"></div></div>
+  <div class="box"><h3>Open interest by strike <select id="optSel"></select></h3><div id="optChart"></div><div class="note">Green up = call OI, red down = put OI. Spot and max pain marked in the table above.</div></div>
+</section>
+
+<!-- FUTURES -->
+<section id="fut" class="hide">
+  <div class="tools">
+    <span class="note">Long/short = share of accounts net long vs net short on perpetual futures. Pick the cryptos to track:</span></div>
+  <div class="chips" id="futChips"></div>
+  <div class="box"><h3>Long vs short by exchange</h3><div id="futTable"></div>
+    <p class="note">Some exchanges block US IP addresses. If a column shows "blocked", that source did not answer from your location; the others still count.</p></div>
+  <div class="box"><h3 id="futTitle">History</h3><div id="futChart"></div><div class="note">Long % of accounts over the selected window. Solid = Bybit, dashed = Binance, dotted = OKX. Above 50% = more accounts long.</div></div>
+</section>
+
+</main>
+<script>
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const LS={get(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+const usd=n=>{if(n==null||isNaN(n))return'-';const a=Math.abs(n);const s=a>=1e12?(a/1e12).toFixed(2)+'T':a>=1e9?(a/1e9).toFixed(2)+'B':a>=1e6?(a/1e6).toFixed(1)+'M':a>=1e3?(a/1e3).toFixed(1)+'K':a.toFixed(0);return(n<0?'-':'')+'$'+s};
+const num=(n,d=0)=>n==null||isNaN(n)?'-':Number(n).toLocaleString(undefined,{maximumFractionDigits:d});
+const cls=n=>n>0?'up':n<0?'down':'';
+const card=(k,v,c='')=>`<div class="card"><div class="k">${k}</div><div class="v ${c}">${v}</div></div>`;
+const getJSON=async(u)=>{const r=await fetch(u);if(!r.ok)throw new Error('HTTP '+r.status);return r.json()};
+
+/* theme */
+function setTheme(t){document.documentElement.dataset.theme=t;LS.set('fw_theme2',t)}
+setTheme(LS.get('fw_theme2','gold'));
+$$('.dot').forEach(b=>b.onclick=()=>setTheme(b.dataset.t));
+
+/* tabs */
+let tf=LS.get('fw_tf','D');
+const TFN={D:'day',W:'week',M:'month'};
+function tfUI(){$$('.tfb').forEach(b=>b.classList.toggle('on',b.dataset.tf===tf))}
+$$('.tfb').forEach(b=>b.onclick=()=>{tf=b.dataset.tf;LS.set('fw_tf',tf);tfUI();load()});
+let tab='etf';
+$$('#tabs button').forEach(b=>b.onclick=()=>{tab=b.dataset.tab;$$('#tabs button').forEach(x=>x.classList.toggle('on',x===b));
+  ['etf','tre','opt','fut'].forEach(id=>$('#'+id).classList.toggle('hide',id!==tab));load()});
+
+/* charts */
+function barSvg(items,{h=220}={}){
+  if(!items.length)return'<div class="note">No data yet.</div>';
+  const W=900,pad=30,max=Math.max(1e-9,...items.map(i=>Math.max(i.pos,i.neg)));
+  const mid=h/2,bw=(W-pad)/items.length;
+  let s=`<svg viewBox="0 0 ${W} ${h+16}" width="100%"><line x1="${pad}" x2="${W}" y1="${mid}" y2="${mid}" stroke="#444"/>`;
+  s+=`<text x="0" y="12">${num(max,max<10?1:0)}</text><text x="0" y="${h}">-${num(max,max<10?1:0)}</text>`;
+  const every=Math.ceil(items.length/14);
+  items.forEach((it,i)=>{
+    const x=pad+i*bw+bw*0.15,w=Math.max(1,bw*0.7);
+    const ph=it.pos/max*(mid-6),nh=it.neg/max*(mid-6);
+    if(ph>0)s+=`<rect x="${x}" y="${mid-ph}" width="${w}" height="${ph}" fill="var(--up)"><title>${it.label}: ${num(it.pos,1)}</title></rect>`;
+    if(nh>0)s+=`<rect x="${x}" y="${mid}" width="${w}" height="${nh}" fill="var(--down)"><title>${it.label}: -${num(it.neg,1)}</title></rect>`;
+    if(i%every===0)s+=`<text x="${x}" y="${h+12}">${it.label}</text>`;
+  });
+  return s+'</svg>';
+}
+function lineSvg(series,labels,{h=220,lo=30,hi=70}={}){
+  const W=900,pad=34,all=series.flatMap(s=>s.vals).filter(v=>v!=null);
+  if(!all.length)return'<div class="note">No history returned.</div>';
+  lo=Math.min(lo,Math.floor(Math.min(...all)-1));hi=Math.max(hi,Math.ceil(Math.max(...all)+1));
+  const y=v=>h-(v-lo)/(hi-lo)*h, n=Math.max(...series.map(s=>s.vals.length));
+  const x=i=>pad+i/(Math.max(1,n-1))*(W-pad);
+  let s=`<svg viewBox="0 0 ${W} ${h+16}" width="100%">`;
+  [lo,50,hi].forEach(v=>s+=`<line x1="${pad}" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="${v==50?'#555':'#222'}" stroke-dasharray="${v==50?'':'3'}"/><text x="0" y="${y(v)+3}">${v}%</text>`);
+  series.forEach(se=>{const pts=se.vals.map((v,i)=>v==null?null:`${x(i)},${y(v)}`).filter(Boolean).join(' ');
+    s+=`<polyline fill="none" stroke="var(--gold)" stroke-width="2" stroke-dasharray="${se.dash}" points="${pts}"/>`});
+  if(labels&&labels.length){[0,Math.floor(labels.length/2),labels.length-1].forEach(i=>s+=`<text x="${Math.min(x(i),W-60)}" y="${h+12}">${labels[i]}</text>`)}
+  return s+'</svg>';
+}
+
+/* ---------------- ETF ---------------- */
+const ETF_ASSETS=['BTC','ETH','SOL','XRP','OTHER'];
+let etfAsset='BTC';
+const etfData=()=>LS.get('fw_etf',[]);
+const wk=d=>{const t=new Date(d+'T00:00:00Z');t.setUTCDate(t.getUTCDate()-((t.getUTCDay()+6)%7));return t.toISOString().slice(0,10)};
+function etfRender(){
+  $('#etfAssets').innerHTML=ETF_ASSETS.map(a=>`<button class="${a===etfAsset?'on':''}" data-a="${a}">${a} ETFs</button>`).join('');
+  $$('#etfAssets button').forEach(b=>b.onclick=()=>{etfAsset=b.dataset.a;$('#qAsset').value=etfAsset;etfRender()});
+  $('#qAsset').innerHTML=ETF_ASSETS.map(a=>`<option ${a===etfAsset?'selected':''}>${a}</option>`).join('');
+  const m={};etfData().filter(r=>r.asset===etfAsset).forEach(r=>{const k=tf==='D'?r.date:tf==='W'?wk(r.date):r.date.slice(0,7);m[k]=(m[k]||0)+r.flow});
+  const rows=Object.keys(m).sort().map(k=>({date:k,flow:m[k]}));
+  const U=TFN[tf],sum=n=>rows.slice(-n).reduce((t,r)=>t+r.flow,0),last=rows[rows.length-1],prev=rows[rows.length-2];
+  $('#etfTitle').textContent='Net flow per '+U+' ($M)';
+  $('#etfCards').innerHTML=card('Latest '+U+(last?' ('+last.date+')':''),last?usd(last.flow*1e6):'-',last?cls(last.flow):'')+
+    card('Previous '+U,prev?usd(prev.flow*1e6):'-',prev?cls(prev.flow):'')+card('Last 4 '+U+'s',usd(sum(4)*1e6),cls(sum(4)))+
+    card('Cumulative entered',usd(sum(1e9)*1e6),cls(sum(1e9)))+card(U+'s logged',rows.length);
+  $('#etfChart').innerHTML=barSvg(rows.slice(-(tf==='D'?60:tf==='W'?26:24)).map(r=>({label:tf==='M'?r.date:r.date.slice(5),pos:Math.max(0,r.flow),neg:Math.max(0,-r.flow)})));
+  $('#etfTable').innerHTML=rows.length?`<table><tr><th>${tf==='W'?'Week of':tf==='M'?'Month':'Date'}</th><th>Net flow</th><th>Running total</th></tr>`+
+    (()=>{let t=0;return rows.map(r=>{t+=r.flow;return{r,t}}).slice(-15).reverse().map(({r,t})=>`<tr><td>${r.date}</td><td class="${cls(r.flow)}">${usd(r.flow*1e6)}</td><td class="${cls(t)}">${usd(t*1e6)}</td></tr>`).join('')})()+'</table>':'<div class="note">Nothing logged for '+etfAsset+' yet.</div>';
+}
+function etfUpsert(date,asset,flow){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||isNaN(flow)||!ETF_ASSETS.includes(asset))return false;
+  const d=etfData().filter(r=>!(r.date===date&&r.asset===asset));d.push({date,asset,flow});LS.set('fw_etf',d);return true;
+}
+$('#qAdd').onclick=()=>{const ok=etfUpsert($('#qDate').value,$('#qAsset').value,parseFloat($('#qFlow').value));$('#etfMsg').textContent=ok?'Saved.':'Check date and number.';if(ok){etfAsset=$('#qAsset').value;etfRender()}};
+$('#pasteGo').onclick=()=>{
+  const lines=$('#paste').value.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);let n=0;
+  if(!lines.length)return;
+  const first=lines[0].split(/[,\t;]/).map(x=>x.trim());
+  if(/^date$/i.test(first[0])){const cols=first.slice(1).map(c=>c.toUpperCase());
+    lines.slice(1).forEach(l=>{const p=l.split(/[,\t;]/).map(x=>x.trim());cols.forEach((c,i)=>{if(p[i+1]!==''&&p[i+1]!=null&&etfUpsert(p[0],ETF_ASSETS.includes(c)?c:'OTHER',parseFloat(p[i+1].replace(/[()$]/g,m=>m=='('?'-':''))))n++})});
+  }else lines.forEach(l=>{const p=l.split(/[,\t;]/).map(x=>x.trim());if(etfUpsert(p[0],etfAsset,parseFloat(p[1])))n++});
+  $('#etfMsg').textContent=n+' entries imported.';etfRender();
+};
+$('#exp').onclick=()=>{const csv='date,asset,flow_usd_millions\n'+etfData().sort((a,b)=>a.date.localeCompare(b.date)).map(r=>`${r.date},${r.asset},${r.flow}`).join('\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='etf-flows.csv';a.click()};
+$('#clr').onclick=()=>{if(confirm('Delete all logged '+etfAsset+' flows?')){LS.set('fw_etf',etfData().filter(r=>r.asset!==etfAsset));etfRender()}};
+$('#qDate').value=new Date().toISOString().slice(0,10);
+
+/* ---------------- TREASURIES ---------------- */
+const TRE_COINS=[['bitcoin','BTC'],['ethereum','ETH'],['solana','SOL'],['ripple','XRP']];
+let treCoin='bitcoin';
+async function treLoad(){
+  $('#treAssets').innerHTML=TRE_COINS.map(([id,s])=>`<button class="${id===treCoin?'on':''}" data-c="${id}">${s}</button>`).join('');
+  $$('#treAssets button').forEach(b=>b.onclick=()=>{treCoin=b.dataset.c;treLoad()});
+  $('#treTable').innerHTML='<div class="note">Loading...</div>';
+  let j;try{j=await getJSON(`https://api.coingecko.com/api/v3/companies/public_treasury/${treCoin}`)}catch(e){
+    $('#treTable').innerHTML=`<div class="err">Could not load ${treCoin} treasury data (${e.message}). CoinGecko's free tier rate-limits; wait a minute and press Refresh. Some assets may not be covered.</div>`;return}
+  const list=(j.companies||[]).sort((a,b)=>b.total_holdings-a.total_holdings);
+  const top=list.slice(0,10);
+  const histAll=LS.get('fw_tre_hist',{});let hist=histAll[treCoin]||[];
+  const snap={ts:Date.now(),h:Object.fromEntries(list.map(c=>[c.name,c.total_holdings]))};
+  if(!hist.length||snap.ts-hist[hist.length-1].ts>6*3600e3){hist.push(snap);hist=hist.slice(-200);histAll[treCoin]=hist;LS.set('fw_tre_hist',histAll)}
+  const win={D:1,W:7,M:30}[tf]*864e5,target=Date.now()-win;
+  const base=[...hist].reverse().find(x=>x.ts<=target)||hist[0];
+  const short=base.ts>target+6*3600e3;
+  const sym=(TRE_COINS.find(x=>x[0]===treCoin)||[])[1]||'';
+  let chg=0;
+  const rows=top.map((c,i)=>{const d=base.h[c.name]==null?0:c.total_holdings-base.h[c.name];chg+=d;
+    return`<tr><td>${i+1}. ${c.name} <span class="note">${c.symbol||''} ${c.country||''}</span></td><td>${num(c.total_holdings,2)} ${sym}</td><td>${usd(c.total_current_value_usd)}</td><td>${c.percentage_of_total_supply!=null?c.percentage_of_total_supply.toFixed(3)+'%':'-'}</td><td class="${cls(d)}">${d?(d>0?'+':'')+num(d,2):'-'}</td></tr>`}).join('');
+  const topSum=top.reduce((t,c)=>t+c.total_holdings,0);
+  $('#treCards').innerHTML=card('All companies hold',num(j.total_holdings,0)+' '+sym)+card('Total value',usd(j.total_value_usd))+
+    card('% of supply held',j.market_cap_dominance!=null?j.market_cap_dominance.toFixed(2)+'%':'-')+card('Top 10 hold',num(topSum,0)+' '+sym)+
+    card('Top 10 change ('+{D:'24h',W:'7d',M:'30d'}[tf]+')',(chg>0?'+':'')+num(chg,2)+' '+sym,cls(chg));
+  $('#treTable').innerHTML=`<table><tr><th>Company</th><th>Holdings</th><th>Value</th><th>% supply</th><th>Change (${{D:'24h',W:'7d',M:'30d'}[tf]})</th></tr>${rows}</table>`;
+  $('#baseNote').textContent='Compared with your snapshot from '+new Date(base.ts).toLocaleString()+(short?' (your saved history is shorter than this window; it fills in as you open the tool over time)':'');
+  $('#rebase').onclick=()=>{delete histAll[treCoin];LS.set('fw_tre_hist',histAll);treLoad()};
+}
+
+/* ---------------- OPTIONS ---------------- */
+const MON={JAN:0,FEB:1,MAR:2,APR:3,MAY:4,JUN:5,JUL:6,AUG:7,SEP:8,OCT:9,NOV:10,DEC:11};
+const expDate=e=>{const m=e.match(/^(\d+)([A-Z]{3})(\d{2})$/);return m?new Date(2000+ +m[3],MON[m[2]],+m[1]):new Date(0)};
+let optState=null;
+async function optLoad(){
+  const coin=$('#optCoin').value;
+  $('#optCards').innerHTML='<div class="note">Loading Deribit...</div>';
+  let j;try{j=await getJSON(`https://www.deribit.com/api/v2/public/get_book_summary_by_currency?currency=${coin==='SOL'?'USDC':coin}&kind=option`)}
+  catch(e){$('#optCards').innerHTML=`<div class="err">Deribit did not answer (${e.message}). It may be blocked from your location or network.</div>`;return}
+  const prefix=coin==='SOL'?'SOL_USDC-':coin+'-';
+  const byExp={};let spot=0;
+  (j.result||[]).filter(r=>r.instrument_name.startsWith(prefix)).forEach(r=>{
+    const p=r.instrument_name.split('-');const e=p[1],k=+p[2],t=p[3];spot=r.underlying_price||spot;
+    const x=byExp[e]||(byExp[e]={e,calls:0,puts:0,strikes:{}});
+    const s=x.strikes[k]||(x.strikes[k]={c:0,p:0});
+    if(t==='C'){x.calls+=r.open_interest;s.c+=r.open_interest}else{x.puts+=r.open_interest;s.p+=r.open_interest}});
+  const allExps=Object.values(byExp).sort((a,b)=>expDate(a.e)-expDate(b.e));
+  const lim={D:2,W:8,M:35}[tf];let exps=allExps.filter(x=>(expDate(x.e)-Date.now())/864e5<=lim);if(!exps.length)exps=allExps.slice(0,1);
+  if(!exps.length){$('#optCards').innerHTML='<div class="err">No option data returned.</div>';return}
+  exps.forEach(x=>{const ks=Object.keys(x.strikes).map(Number);let best=null,bv=Infinity;
+    ks.forEach(K=>{let pain=0;ks.forEach(s=>{const o=x.strikes[s];pain+=Math.max(0,K-s)*o.c+Math.max(0,s-K)*o.p});if(pain<bv){bv=pain;best=K}});x.pain=best});
+  const C=exps.reduce((t,x)=>t+x.calls,0),P=exps.reduce((t,x)=>t+x.puts,0);
+  $('#optCards').innerHTML=card(coin+' spot (Deribit index)',usd(spot))+card('Call OI',num(C,0)+' '+coin,'up')+card('Put OI',num(P,0)+' '+coin,'down')+
+    card('Put/Call ratio (OI)',(P/C).toFixed(2),P/C>1?'down':'up')+card('Call notional',usd(C*spot))+card('Put notional',usd(P*spot))+card('Expiries shown',({D:'Next ~2 days',W:'Next 7 days',M:'Next 30 days'})[tf]+' ('+exps.length+')');
+  const mx=Math.max(...exps.map(x=>x.calls+x.puts));
+  $('#optExp').innerHTML=`<table><tr><th>Expiry</th><th>Calls</th><th>Puts</th><th>P/C</th><th>Max pain</th><th>Share of OI</th></tr>`+exps.map(x=>{const t=x.calls+x.puts;
+    return`<tr><td>${x.e}</td><td class="up">${num(x.calls,0)}</td><td class="down">${num(x.puts,0)}</td><td>${(x.puts/Math.max(1,x.calls)).toFixed(2)}</td><td>${num(x.pain)}</td>
+    <td><div class="bar" style="width:${t/mx*100}%"><i style="width:${x.calls/t*100}%;background:var(--up)"></i><i style="width:${x.puts/t*100}%;background:var(--down)"></i></div></td></tr>`}).join('')+'</table>';
+  optState={exps,spot};
+  const big=[...exps].sort((a,b)=>(b.calls+b.puts)-(a.calls+a.puts))[0].e;
+  $('#optSel').innerHTML=exps.map(x=>`<option ${x.e===big?'selected':''}>${x.e}</option>`).join('');
+  optStrikes();
+}
+function optStrikes(){
+  if(!optState)return;const x=optState.exps.find(e=>e.e===$('#optSel').value);if(!x)return;
+  const spot=optState.spot;
+  const ks=Object.keys(x.strikes).map(Number).sort((a,b)=>a-b).filter(k=>k>spot*0.5&&k<spot*1.6);
+  $('#optChart').innerHTML=barSvg(ks.map(k=>({label:k>=1000?(k/1000)+'k':k,pos:x.strikes[k].c,neg:x.strikes[k].p})))+
+    `<div class="note">Spot ${num(spot)} &middot; max pain ${num(x.pain)} &middot; strikes shown: ${ks.length}</div>`;
+}
+$('#optCoin').onchange=optLoad;$('#optSel').onchange=optStrikes;
+
+/* ---------------- FUTURES ---------------- */
+const FUT_COINS=['BTC','ETH','SOL','XRP','DOGE','BNB','AVAX','LINK','SUI','ADA','HYPE'];
+let futSel=LS.get('fw_fut',['BTC','ETH','SOL']),futDetail=futSel[0]||'BTC';
+const okPer={'5m':'5m','15m':'15m','1h':'1H','4h':'4H','1d':'1D'};
+const bybitPer={'5m':'5min','15m':'15min','1h':'1h','4h':'4h','1d':'1d'};
+const src={
+  async bybit(c,p,n){const j=await getJSON(`https://api.bybit.com/v5/market/account-ratio?category=linear&symbol=${c}USDT&period=${bybitPer[p]}&limit=${n}`);
+    return j.result.list.map(r=>({t:+r.timestamp,long:+r.buyRatio*100})).sort((a,b)=>a.t-b.t)},
+  async binance(c,p,n){const j=await getJSON(`https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol=${c}USDT&period=${p}&limit=${n}`);
+    return j.map(r=>({t:+r.timestamp,long:+r.longAccount*100}))},
+  async okx(c,p,n){const j=await getJSON(`https://www.okx.com/api/v5/rubik/stat/contracts/long-short-account-ratio?ccy=${c}&period=${okPer[p]}`);
+    return j.data.map(r=>{const q=+r[1];return{t:+r[0],long:q/(1+q)*100}}).sort((a,b)=>a.t-b.t).slice(-n)}
+};
+const FP={D:['1h',24,'last 24 hours (hourly points)'],W:['1d',7,'last 7 days (daily points)'],M:['1d',30,'last 30 days (daily points)']};
+const avgOf=v=>v.reduce((x,y)=>x+y.long,0)/v.length;
+const cell=r=>{if(r.status!=='fulfilled'||!r.value.length)return'<span class="note">blocked</span>';
+  const a=avgOf(r.value),d=r.value[r.value.length-1].long-r.value[0].long;
+  return`<span class="${a>=50?'up':'down'}">${a.toFixed(1)}%</span> / ${(100-a).toFixed(1)}% <span class="note ${d>=0?'up':'down'}">${d>=0?'&#9650;':'&#9660;'}${Math.abs(d).toFixed(1)}</span>`};
+async function futLoad(){
+  $('#futChips').innerHTML=FUT_COINS.map(c=>`<button class="${futSel.includes(c)?'on':''}" data-c="${c}">${c}</button>`).join('');
+  $$('#futChips button').forEach(b=>b.onclick=()=>{const c=b.dataset.c;futSel=futSel.includes(c)?futSel.filter(x=>x!==c):[...futSel,c];LS.set('fw_fut',futSel);if(!futSel.includes(futDetail))futDetail=futSel[0]||'BTC';futLoad()});
+  const [p,n,desc]=FP[tf];
+  $('#futTable').innerHTML='<div class="note">Loading...</div>';
+  const rows=await Promise.all(futSel.map(async c=>{
+    const [a,b,o,t]=await Promise.all([src.bybit(c,p,n),src.binance(c,p,n),src.okx(c,p,n),getJSON(`https://api.bybit.com/v5/market/tickers?category=linear&symbol=${c}USDT`).then(j=>j.result.list[0])].map(x=>x.then(v=>({status:'fulfilled',value:v}),e=>({status:'rejected',reason:e}))));
+    const tk=t.status==='fulfilled'?t.value:null;
+    const ok=[a,b,o].filter(r=>r.status==='fulfilled'&&r.value.length);
+    const avg=ok.length?ok.reduce((s2,r)=>s2+avgOf(r.value),0)/ok.length:null;
+    return`<tr data-c="${c}" class="${c===futDetail?'sel':''}" style="cursor:pointer"><td>${c}</td><td>${cell(a)}</td><td>${cell(b)}</td><td>${cell(o)}</td>
+      <td>${avg==null?'-':`<b class="${avg>=50?'up':'down'}">${avg.toFixed(1)}% long</b>`}</td>
+      <td class="${tk&&+tk.fundingRate>0?'up':'down'}">${tk?(+tk.fundingRate*100).toFixed(4)+'%':'-'}</td><td>${tk?usd(+tk.openInterestValue):'-'}</td></tr>`}));
+  $('#futTable').innerHTML=`<table><tr><th>Coin</th><th>Bybit avg L / S</th><th>Binance avg L / S</th><th>OKX avg L / S</th><th>Avg</th><th>Funding now</th><th>Bybit OI now</th></tr>${rows.join('')}</table>
+    <p class="note">Long / short = average over the ${desc}. The arrow shows how the long share moved from the start to the end of that window. Funding positive = longs pay shorts (crowded long). Click a row for its chart.</p>`;
+  $$('#futTable tr[data-c]').forEach(r=>r.onclick=()=>{futDetail=r.dataset.c;futLoad()});
+  if(!futSel.length){$('#futChart').innerHTML='';return}
+  $('#futTitle').textContent=futDetail+' long % - '+desc;
+  const res=await Promise.all([['bybit',''],['binance','6 4'],['okx','2 3']].map(([k,d])=>src[k](futDetail,p,n).then(v=>({vals:v.map(x=>x.long),dash:d,t:v.map(x=>x.t)}),()=>null)));
+  const okr=res.filter(Boolean);
+  $('#futChart').innerHTML=okr.length?lineSvg(okr,okr[0].t.map(t=>tf==='D'?new Date(t).toLocaleTimeString([],{hour:'numeric'}):new Date(t).toLocaleDateString([],{month:'numeric',day:'numeric'}))):'<div class="err">No source returned history.</div>';
+}
+
+/* ---------------- shell ---------------- */
+async function load(){
+  if(tab==='etf')etfRender();else if(tab==='tre')await treLoad();else if(tab==='opt')await optLoad();else await futLoad();
+  $('#stamp').textContent='updated '+new Date().toLocaleTimeString();
+}
+$('#refresh').onclick=load;
+let timer=null;$('#auto').onchange=e=>{clearInterval(timer);if(e.target.checked)timer=setInterval(()=>{if(tab!=='etf')load()},300000)};
+tfUI();load();
+</script>
+</body>
+</html>
